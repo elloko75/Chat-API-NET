@@ -12,11 +12,15 @@ namespace WhatsAppApi
 {
     public class WhatsAppBase : WhatsEventBase
     {
+        public long m_LastSentInfo = 0;
+
         protected ProtocolTreeNode uploadResponse;
 
         protected AccountInfo accountinfo;
 
         public static bool DEBUG;
+
+        public static bool DEBUGOutBound;
 
         protected string password;
 
@@ -32,7 +36,9 @@ namespace WhatsAppApi
             }
         }
 
-        protected KeyStream outputKey;
+        protected KeyStream _outputKey;
+
+        protected KeyStream _inputKey;
 
         protected object messageLock = new object();
 
@@ -54,11 +60,11 @@ namespace WhatsAppApi
 
         protected BinTreeNodeWriter BinWriter;
 
-        protected void _constructBase(string phoneNum, string imei, string nick, bool debug, bool hidden)
+        protected void _constructBase(string phoneNum, string password, string nick, bool debug, bool hidden)
         {
             this.messageQueue = new List<ProtocolTreeNode>();
             this.phoneNumber = phoneNum;
-            this.password = imei;
+            this.password = password;
             this.name = nick;
             this.hidden = hidden;
             WhatsApp.DEBUG = debug;
@@ -85,7 +91,7 @@ namespace WhatsAppApi
 
         public void Disconnect(Exception ex = null)
         {
-            this.whatsNetwork.Disconenct();
+            this.whatsNetwork.Disconnect();
             this.loginStatus = CONNECTION_STATUS.DISCONNECTED;
             this.fireOnDisconnect(ex);
         }
@@ -138,8 +144,15 @@ namespace WhatsAppApi
             }
         }
 
-        protected void SendNode(ProtocolTreeNode node)
+        protected string getChallengeFile()
         {
+            return string.Format(@"c:\temp\challenge-{0}.dat", this.phoneNumber);
+        }
+
+        //BRIAN MODIFIED FIXME: SHOULD NOT BE OPENED LIKE THIS INLINE THE Axolotl CLASS INSTEAD
+        public void SendNode(ProtocolTreeNode node)
+        {
+            m_LastSentInfo = DateTime.UtcNow.ToFileTime();
             this.SendData(this.BinWriter.Write(node));
         }
     }

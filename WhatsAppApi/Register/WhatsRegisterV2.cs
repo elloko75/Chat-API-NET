@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.Specialized;
 using System.Globalization;
 using System.Linq;
 using System.Net;
@@ -15,12 +16,12 @@ namespace WhatsAppApi.Register
     {
         public static string GenerateIdentity(string phoneNumber, string salt = "")
         {
-            return (phoneNumber + salt).Reverse().ToSHAString();
+            return (phoneNumber + salt).Reverse().ToSHAString().ToLower();
         }
 
-        public static string GetToken(string number)
+        public static string GetToken(string number, string platform)
         {
-            return WaToken.GenerateToken(number);
+            return WaToken.GenerateToken(number, WhatsConstants.Platform );
         }
 
         public static bool RequestCode(string phoneNumber, out string password, string method = "sms", string id = null)
@@ -48,10 +49,37 @@ namespace WhatsAppApi.Register
                     id = GenerateIdentity(phoneNumber);
                 }
                 PhoneNumber pn = new PhoneNumber(phoneNumber);
-                string token = System.Uri.EscapeDataString(WhatsRegisterV2.GetToken(pn.Number));
-                
-				request = String.Format("https://v.whatsapp.net/v2/code?method={0}&in={1}&cc={2}&id={3}&lg={4}&lc={5}&token={6}&sim_mcc=000&sim_mnc=000", method, pn.Number, pn.CC, id, pn.ISO639, pn.ISO3166, token, pn.MCC, pn.MNC);
-                response = GetResponse(request);
+                string token = System.Uri.EscapeDataString(WhatsRegisterV2.GetToken(pn.Number, WhatsConstants.Platform ));
+
+                Dictionary<string, string> query = new Dictionary<string, string>();
+
+                query.Add("cc", pn.CC);
+                query.Add("in", pn.Number);
+                query.Add("lg", pn.ISO639);
+                query.Add("lc", pn.ISO3166);
+                query.Add("id", id);
+                query.Add("token", token);
+                query.Add("mistyped", "6");
+                query.Add("network_radio_type", "1");
+                query.Add("simnum", "1");
+                query.Add("s", "");
+                query.Add("copiedrc", "1");
+                query.Add("hasinrc", "1");
+                query.Add("rcmatch", "1");
+                query.Add("pid", ((new Random()).Next(9899) + 100).ToString());
+                query.Add("rchash", GetRandom(20).ToSHA256String());
+                query.Add("anhash", GetRandom(20).ToMD5String());
+                query.Add("extexist", "1");
+                query.Add("extstate", "1");
+                query.Add("mcc", pn.MCC);
+                query.Add("mnc", pn.MNC);
+                query.Add("sim_mcc", pn.MCC);
+                query.Add("sim_mnc", pn.MNC);
+                query.Add("method", method);
+
+                string uri = BuildUrl(WhatsConstants.WhatsAppRequestHost, query);
+                Console.WriteLine(uri);
+                response = GetResponse(uri);
                 password = response.GetJsonValue("pw");
                 if (!string.IsNullOrEmpty(password))
                 {
@@ -59,7 +87,7 @@ namespace WhatsAppApi.Register
                 }
                 return (response.GetJsonValue("status") == "sent");
             }
-            catch(Exception e)
+            catch (Exception e)
             {
                 response = e.Message;
                 return false;
@@ -84,7 +112,28 @@ namespace WhatsAppApi.Register
                 }
                 PhoneNumber pn = new PhoneNumber(phoneNumber);
 
-				string uri = string.Format("https://v.whatsapp.net/v2/register?cc={0}&in={1}&id={2}&code={3}", pn.CC, pn.Number, id, code);
+                Dictionary<string, string> query = new Dictionary<string, string>();
+                query.Add("cc", pn.CC);
+                query.Add("in", pn.Number);
+                query.Add("lg", pn.ISO639);
+                query.Add("lc", pn.ISO3166);
+                query.Add("id", id);
+                query.Add("mistyped", "6");
+                query.Add("network_radio_type", "1");
+                query.Add("simnum", "1");
+                query.Add("s", "");
+                query.Add("copiedrc", "1");
+                query.Add("hasinrc", "1");
+                query.Add("rcmatch", "1");
+                query.Add("pid", ((new Random()).Next(9899) + 100).ToString());
+                query.Add("rchash", GetRandom(20).ToSHA256String());
+                query.Add("anhash", GetRandom(20).ToMD5String());
+                query.Add("extexist", "1");
+                query.Add("extstate", "1");
+                // query.Add("method", "sms");
+                query.Add("code", code);
+
+                string uri = BuildUrl(WhatsConstants.WhatsAppRegisterHost, query);
 				response = GetResponse(uri);
                 if (response.GetJsonValue("status") == "ok")
                 {
@@ -115,7 +164,24 @@ namespace WhatsAppApi.Register
                 }
                 PhoneNumber pn = new PhoneNumber(phoneNumber);
 
-                string uri = string.Format("https://v.whatsapp.net/v2/exist?cc={0}&in={1}&id={2}&&lg={3}&lc={4}", pn.CC, pn.Number, id, pn.ISO639, pn.ISO3166);
+                Dictionary<string, string> query = new Dictionary<string, string>();
+                query.Add("cc", pn.CC);
+                query.Add("in", pn.Number);
+                query.Add("lg", pn.ISO639);
+                query.Add("lc", pn.ISO3166);
+                query.Add("id", id);
+                query.Add("mistyped", "6");
+                query.Add("network_radio_type", "1");
+                query.Add("simnum", "1");
+                query.Add("s", "");
+                query.Add("copiedrc", "1");
+                query.Add("hasinrc", "1");
+                query.Add("rcmatch", "1");
+                query.Add("pid", ((new Random()).Next(9899) + 100).ToString());
+                query.Add("extexist", "1");
+                query.Add("extstate", "1");
+                
+                string uri = BuildUrl(WhatsConstants.WhatsAppCheckHost, query);
                 response = GetResponse(uri);
                 if (response.GetJsonValue("status") == "ok")
                 {
@@ -127,6 +193,12 @@ namespace WhatsAppApi.Register
             {
                 return null;
             }
+        }
+
+        private static string BuildUrl(string host, Dictionary<string, string> query)
+        {
+            string querystr = String.Join("&", (from q in query select String.Format("{0}={1}", q.Key, q.Value)).ToArray());
+            return string.Format("https://{0}?{1}", host, querystr);
         }
 
         private static string GetResponse(string uri)
@@ -191,12 +263,30 @@ namespace WhatsAppApi.Register
             return sb.ToString();
         }
 
+        private static byte[] GetRandom(int len)
+        {
+            byte[] bytes = new byte[len];
+            (new Random()).NextBytes(bytes);
+            return bytes;
+        }
+
         private static string ToSHAString(this string s)
         {
             byte[] data = SHA1.Create().ComputeHash(Encoding.UTF8.GetBytes(s));
             string str = Encoding.GetEncoding("iso-8859-1").GetString(data);
             str = WhatsRegisterV2.UrlEncode(str).ToLower();
             return str;
+        }
+
+        private static string ToSHA256String(this byte[] bytes)
+        {
+            byte[] data = SHA256.Create().ComputeHash(bytes);
+            return string.Join(string.Empty, data.Select(q => q.ToString("x2")).ToArray());
+        }
+
+        private static string ToMD5String(this byte[] bytes)
+        {
+            return string.Join(string.Empty, MD5.Create().ComputeHash(bytes).Select(item => item.ToString("x2")).ToArray());
         }
 
         private static string ToMD5String(this IEnumerable<char> s)

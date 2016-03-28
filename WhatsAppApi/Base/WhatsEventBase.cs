@@ -64,39 +64,48 @@ namespace WhatsAppApi
             }
         }
 
+        public event OnProcessMessageExceptionDelegate OnProcessMessageException;
+        protected void fireOnProcessMessageException(Exception ex, byte[] data, ProtocolTreeNode node)
+        {
+            if (this.OnProcessMessageException != null)
+            {
+                this.OnProcessMessageException(ex, data, node);
+            }
+        }
+
         public event OnGetMediaDelegate OnGetMessageImage;
-        protected void fireOnGetMessageImage(ProtocolTreeNode mediaNode, string from, string id, string fileName, int fileSize, string url, byte[] preview)
+        protected void fireOnGetMessageImage(ProtocolTreeNode mediaNode, string from, string id, string fileName, int fileSize, string url, byte[] preview, string name)
         {
             if (this.OnGetMessageImage != null)
             {
-                this.OnGetMessageImage(mediaNode, from, id, fileName, fileSize, url, preview);
+                this.OnGetMessageImage(mediaNode, from, id, fileName, fileSize, url, preview, name);
             }
         }
 
         public event OnGetMediaDelegate OnGetMessageVideo;
-        protected void fireOnGetMessageVideo(ProtocolTreeNode mediaNode, string from, string id, string fileName, int fileSize, string url, byte[] preview)
+        protected void fireOnGetMessageVideo(ProtocolTreeNode mediaNode, string from, string id, string fileName, int fileSize, string url, byte[] preview, string name)
         {
             if (this.OnGetMessageVideo != null)
             {
-                this.OnGetMessageVideo(mediaNode, from, id, fileName, fileSize, url, preview);
+                this.OnGetMessageVideo(mediaNode, from, id, fileName, fileSize, url, preview, name);
             }
         }
 
         public event OnGetMediaDelegate OnGetMessageAudio;
-        protected void fireOnGetMessageAudio(ProtocolTreeNode mediaNode, string from, string id, string fileName, int fileSize, string url, byte[] preview)
+        protected void fireOnGetMessageAudio(ProtocolTreeNode mediaNode, string from, string id, string fileName, int fileSize, string url, byte[] preview, string name)
         {
             if (this.OnGetMessageAudio != null)
             {
-                this.OnGetMessageAudio(mediaNode, from, id, fileName, fileSize, url, preview);
+                this.OnGetMessageAudio(mediaNode, from, id, fileName, fileSize, url, preview, name);
             }
         }
 
         public event OnGetLocationDelegate OnGetMessageLocation;
-        protected void fireOnGetMessageLocation(ProtocolTreeNode locationNode, string from, string id, double lon, double lat, string url, string name, byte[] preview)
+        protected void fireOnGetMessageLocation(ProtocolTreeNode locationNode, string from, string id, double lon, double lat, string url, string name, byte[] preview, string User)
         {
             if (this.OnGetMessageLocation != null)
             {
-                this.OnGetMessageLocation(locationNode, from, id, lon, lat, url, name, preview);
+                this.OnGetMessageLocation(locationNode, from, id, lon, lat, url, name, preview, User);
             }
         }
 
@@ -306,14 +315,15 @@ namespace WhatsAppApi
         public delegate void StringDelegate(string data);
         public delegate void OnErrorDelegate(string id, string from, int code, string text);
         public delegate void OnGetMessageReceivedDelegate(string from, string id);
+        public delegate void OnProcessMessageExceptionDelegate(Exception ex, byte[] data, ProtocolTreeNode node);
         public delegate void OnNotificationPictureDelegate(string type, string jid, string id);
         public delegate void OnGetMessageDelegate(ProtocolTreeNode messageNode, string from, string id, string name, string message, bool receipt_sent);
         public delegate void OnGetPresenceDelegate(string from, string type);
         public delegate void OnGetGroupParticipantsDelegate(string gjid, string[] jids);
         public delegate void OnGetLastSeenDelegate(string from, DateTime lastSeen);
         public delegate void OnGetChatStateDelegate(string from);
-        public delegate void OnGetMediaDelegate(ProtocolTreeNode mediaNode, string from, string id, string fileName, int fileSize, string url, byte[] preview);
-        public delegate void OnGetLocationDelegate(ProtocolTreeNode locationNode, string from, string id, double lon, double lat, string url, string name, byte[] preview);
+        public delegate void OnGetMediaDelegate(ProtocolTreeNode mediaNode, string from, string id, string fileName, int fileSize, string url, byte[] preview, string name);
+        public delegate void OnGetLocationDelegate(ProtocolTreeNode locationNode, string from, string id, double lon, double lat, string url, string name, byte[] preview, string UserName);
         public delegate void OnGetVcardDelegate(ProtocolTreeNode vcardNode, string from, string id, string name, byte[] data);
         public delegate void OnGetPictureDelegate(string from, string id, byte[] data);
         public delegate void OnGetGroupsDelegate(WaGroupInfo[] groups);

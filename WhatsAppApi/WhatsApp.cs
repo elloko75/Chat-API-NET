@@ -21,9 +21,9 @@ namespace WhatsAppApi
     /// </summary>
     public class WhatsApp : WhatsSendBase
     {
-        public WhatsApp(string phoneNum, string imei, string nick, bool debug = false, bool hidden = false)
+        public WhatsApp(string phoneNum, string password, string nick, bool debug = false, bool hidden = false)
         {
-            this._constructBase(phoneNum, imei, nick, debug, hidden);
+            this._constructBase(phoneNum, password, nick, debug, hidden);
         }
 
         public string SendMessage(string to, string txt)
@@ -37,6 +37,14 @@ namespace WhatsAppApi
         {
             var tmpMessage = new FMessage(GetJID(to), true) { data = vcard_data, media_wa_type = FMessage.Type.Contact, media_name = name };
             this.SendMessage(tmpMessage, this.hidden);
+        }
+
+        //BRIAN ADDED FOR LOCATION SHARING 
+        public string SendMessageLocation(string to, string name, double lat, double lon)
+        {
+            var tmpMessage = new FMessage(GetJID(to), true) { location_details = name, media_wa_type = FMessage.Type.Location, latitude = lat, longitude = lon };
+            this.SendMessage(tmpMessage, this.hidden);
+            return tmpMessage.identifier_key.ToString();
         }
 
         public void SendSync(string[] numbers, SyncMode mode = SyncMode.Delta, SyncContext context = SyncContext.Background, int index = 0, bool last = true)
@@ -69,17 +77,21 @@ namespace WhatsAppApi
             this.SendNode(node);
         }
 
-        public void SendMessageImage(string to, byte[] ImageData, ImageType imgtype)
+        // BRIAN modified added return string .. 
+        public string SendMessageImage(string to, byte[] ImageData, ImageType imgtype)
         {
             FMessage msg = this.getFmessageImage(to, ImageData, imgtype);
             if (msg != null)
             {
                 this.SendMessage(msg);
+                return msg.identifier_key.ToString();
             }
+            return "";
         }
 
         protected FMessage getFmessageImage(string to, byte[] ImageData, ImageType imgtype)
         {
+            to = GetJID(to);
             string type = string.Empty;
             string extension = string.Empty;
             switch (imgtype)
@@ -126,13 +138,16 @@ namespace WhatsAppApi
             return null;
         }
 
-        public void SendMessageVideo(string to, byte[] videoData, VideoType vidtype)
+        // BRIAN MODIFIED FOR RETURN ID 
+        public string SendMessageVideo(string to, byte[] videoData, VideoType vidtype)
         {
             FMessage msg = this.getFmessageVideo(to, videoData, vidtype);
             if (msg != null)
             {
                 this.SendMessage(msg);
+                return msg.identifier_key.ToString();
             }
+            return "";
         }
 
         protected FMessage getFmessageVideo(string to, byte[] videoData, VideoType vidtype)
@@ -250,17 +265,20 @@ namespace WhatsAppApi
             string id = TicketManager.GenerateId();
             ProtocolTreeNode node = new ProtocolTreeNode("iq", new KeyValue[] {
                 new KeyValue("id", id),
-                new KeyValue("to", WhatsConstants.WhatsAppServer),
+                new KeyValue("to", to),
                 new KeyValue("type", "set"),
                 new KeyValue("xmlns", "w:m")
             }, media);
             this.uploadResponse = null;
             this.SendNode(node);
             int i = 0;
-            while (this.uploadResponse == null && i <= 10)
+            while (this.uploadResponse == null && i <= 100)
             {
-                i++;
+                if (m_usePoolMessages)
+                    System.Threading.Thread.Sleep(500);
+                else
                 this.pollMessage();
+                i++;
             }
             if (this.uploadResponse != null && this.uploadResponse.GetChild("duplicate") != null)
             {
@@ -317,7 +335,14 @@ namespace WhatsAppApi
 
                     TcpClient tc = new TcpClient(uri.Host, 443);
                     SslStream ssl = new SslStream(tc.GetStream());
+                    try
+                    {
                     ssl.AuthenticateAsClient(uri.Host);
+                    }
+                    catch (Exception e)
+                    {
+                        throw e;
+                    }
 
                     List<byte> buf = new List<byte>();
                     buf.AddRange(Encoding.UTF8.GetBytes(post));
@@ -489,14 +514,6 @@ namespace WhatsAppApi
             this.SendNode(node);
         }
 
-        public void SendGetClientConfig()
-        {
-            string id = TicketCounter.MakeId();
-            var child = new ProtocolTreeNode("config", new[] { new KeyValue("xmlns", "urn:xmpp:whatsapp:push") });
-            var node = new ProtocolTreeNode("iq", new[] { new KeyValue("id", id), new KeyValue("type", "get"), new KeyValue("to", WhatsConstants.WhatsAppRealm) }, new ProtocolTreeNode[] { child });
-            this.SendNode(node);
-        }
-
         public void SendGetDirty()
         {
             string id = TicketCounter.MakeId();
@@ -629,12 +646,16 @@ namespace WhatsAppApi
             }
         }
 
-        public void SendMessageBroadcast(string[] to, string message)
+        //BRIAN MODIFIED FOR RETURN ID
+        public string SendMessageBroadcast(string[] to, string message)
         {
-            this.SendMessageBroadcast(to, new FMessage(string.Empty, true) { data = message, media_wa_type = FMessage.Type.Undefined });
+            var tmpMessage = new FMessage(string.Empty, true) { data = message, media_wa_type = FMessage.Type.Undefined };
+            this.SendMessageBroadcast(to, tmpMessage);
+            return tmpMessage.identifier_key.ToString();
         }
 
-        public void SendMessageBroadcastImage(string[] recipients, byte[] ImageData, ImageType imgtype)
+        //BRIAN MODIFIED FOR RETURN ID
+        public string SendMessageBroadcastImage(string[] recipients, byte[] ImageData, ImageType imgtype)
         {
             string to;
             List<string> foo = new List<string>();
@@ -647,10 +668,14 @@ namespace WhatsAppApi
             if (msg != null)
             {
                 this.SendMessage(msg);
+                return msg.identifier_key.ToString();
             }
+
+            return "";
         }
 
-        public void SendMessageBroadcastAudio(string[] recipients, byte[] AudioData, AudioType audtype)
+        //BRIAN MODIFIED FOR RETURN ID
+        public string SendMessageBroadcastAudio(string[] recipients, byte[] AudioData, AudioType audtype)
         {
             string to;
             List<string> foo = new List<string>();
@@ -663,10 +688,14 @@ namespace WhatsAppApi
             if (msg != null)
             {
                 this.SendMessage(msg);
+                return msg.identifier_key.ToString();
             }
+
+            return "";
         }
 
-        public void SendMessageBroadcastVideo(string[] recipients, byte[] VideoData, VideoType vidtype)
+        //BRIAN MODIFIED FOR RETURN ID
+        public string SendMessageBroadcastVideo(string[] recipients, byte[] VideoData, VideoType vidtype)
         {
             string to;
             List<string> foo = new List<string>();
@@ -679,7 +708,10 @@ namespace WhatsAppApi
             if (msg != null)
             {
                 this.SendMessage(msg);
+                return msg.identifier_key.ToString();
             }
+
+            return "";
         }
 
 		public void SendMessageBroadcast(string[] to, FMessage message)
